@@ -1,0 +1,26 @@
+name: Sync GHCR.IO to DockerHub
+
+on:
+  workflow_dispatch: # 允许手动触发
+  
+jobs:
+  sync-image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Generate Random 6-Digit Tag
+        run: echo "RANDOM_TAG=$(head /dev/urandom | tr -dc a-z0-9 | head -c6)" >> $GITHUB_ENV
+
+      - name: Login to DockerHub
+        run: echo "${{ secrets.DOCKERHUB_ACCESS_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+
+      - name: Pull Image from GHCR.IO
+        run: docker pull ghcr.io/eooce/nodejs-argo:latest
+
+      - name: Retag Image
+        run: docker tag ghcr.io/eooce/nodejs-argo:latest ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.RANDOM_TAG }}:latest
+
+      - name: Push Image to DockerHub
+        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.RANDOM_TAG }}:latest
