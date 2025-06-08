@@ -1,0 +1,25 @@
+name: checkEL for ARM64
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Cross Compiler
+        run: sudo apt update && sudo apt install -y gcc-aarch64-linux-gnu
+
+      - name: Compile for ARM64
+        run: aarch64-linux-gnu-gcc -o check_el check_el.c
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiled-binary
+          path: check_el
