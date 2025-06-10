@@ -1,55 +1,65 @@
-name: Build Dropbear for Multiple Architectures
+name: Build Dropbear with Buildroot (Multi-Arch)
 
 on:
   push:
-    branches:
-      - main
-  workflow_dispatch: # 允许手动触发
+    branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
   build:
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        arch: [x86_64, arm, mips] # 多架构支持
-    runs-on: ubuntu-latest
-
+        arch: [ "x86_64", "aarch64", "armv7", "riscv64" ]  # 目标架构
     steps:
-      - name: 🚀 获取仓库代码
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: 🔧 安装 Buildroot 依赖
+      - name: Install Dependencies
         run: |
-          sudo apt update && sudo apt install -y build-essential git wget
+          sudo apt-get update
+          sudo apt-get install -y build-essential git wget cpio unzip rsync bc libssl-dev
 
-      - name: 📥 下载 Buildroot
+      - name: Download Buildroot
         run: |
-          BR_VER=2024.02
-          wget https://buildroot.org/downloads/buildroot-${BR_VER}.tar.gz
-          tar xvf buildroot-${BR_VER}.tar.gz
-          mv buildroot-${BR_VER} buildroot
-          
-      - name: 🎯 配置 Buildroot 目标架构
+          wget https://buildroot.org/downloads/buildroot-2024.02.tar.gz
+          tar xzf buildroot-2024.02.tar.gz
+          mv buildroot-2024.02 buildroot-${{ matrix.arch }}
+
+      - name: Configure Buildroot for Dropbear
         run: |
-          cd buildroot
+          cd buildroot-${{ matrix.arch }}
           make defconfig
-          make menuconfig <<EOF
-          set-config BR2_PACKAGE_DROPBEAR=y
-          set-config BR2_ARCH=${{ matrix.arch }}
-          EOF
+          echo 'BR2_PACKAGE_DROPBEAR=y' >> .config
+          echo 'BR2_PACKAGE_DROPBEAR_CLIENT=y' >> .config
+          case "${{ matrix.arch }}" in
+            "x86_64")
+              echo 'BR2_x86_64=y' >> .config
+              ;;
+            "aarch64")
+              echo 'BR2_aarch64=y' >> .config
+              ;;
+            "armv7")
+              echo 'BR2_arm=y' >> .config
+              echo 'BR2_ARM_EABIHF=y' >> .config
+              echo 'BR2_ARM_INSTRUCTIONSET=arm' >> .config
+              ;;
+            "riscv64")
+              echo 'BR2_riscv=y' >> .config
+              echo 'BR2_RISCV_64=y' >> .config
+              ;;
+          esac
+          make olddefconfig
 
-      - name: 🛠️ 编译 Dropbear
+      - name: Build Dropbear
         run: |
-          cd buildroot
+          cd buildroot-${{ matrix.arch }}
           make -j$(nproc)
 
-      - name: 📦 打包二进制文件
-        run: |
-          mkdir -p output/${{ matrix.arch }}
-          cp buildroot/output/images/rootfs.tar output/${{ matrix.arch }}/dropbear-rootfs.tar
-          tar -cvf dropbear-${{ matrix.arch }}.tar.gz -C output/${{ matrix.arch }} .
-
-      - name: ☁️ 上传编译结果
-        uses: actions/upload-artifact@v4
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
         with:
           name: dropbear-${{ matrix.arch }}
-          path: dropbear-${{ matrix.arch }}.tar.gz
+          path: |
+            buildroot-${{ matrix.arch }}/output/target/usr/sbin/dropbear
+            buildroot-${{ matrix.arch }}/output/target/usr/bin/dbclient
