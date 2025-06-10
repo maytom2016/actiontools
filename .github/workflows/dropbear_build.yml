@@ -18,7 +18,7 @@ jobs:
         run: |
           git clone https://github.com/mkj/dropbear.git
           cd dropbear
-          git checkout latest
+          git checkout DROPBEAR_2025.88
 
       - name: 🔧 安装 musl 编译工具链
         run: |
