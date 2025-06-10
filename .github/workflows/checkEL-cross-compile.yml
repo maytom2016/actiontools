@@ -1,28 +1,44 @@
-name: checkEL for ARM64
+name: Build Dropbear (Static Musl)
+
 on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
+  workflow_dispatch: # 允许手动触发
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout Repository
+      - name: 🚀 获取仓库代码
         uses: actions/checkout@v4
 
-      - name: Install Cross Compiler
-        run: sudo apt update && sudo apt install -y gcc-aarch64-linux-gnu
+      - name: 📥 下载 Dropbear 源码
+        run: |
+          git clone https://github.com/mkj/dropbear.git
+          cd dropbear
+          git checkout latest
 
-      - name: Compile for ARM64 (Static)
-        run: aarch64-linux-gnu-gcc -static -march=armv8-a -o check_el check_el.c
+      - name: 🔧 安装 musl 编译工具链
+        run: |
+          sudo apt update && sudo apt install -y musl musl-tools build-essential
 
-      - name: Verify Binary Architecture
-        run: file check_el
+      - name: 🛠️ 编译 Dropbear（静态链接）
+        run: |
+          cd dropbear
+          ./configure --host=x86_64-linux-musl --disable-zlib --enable-static
+          make PROGRAMS="dropbear dbclient dropbearkey dropbearconvert scp" -j$(nproc)
 
-      - name: Upload Artifact
+      - name: 📦 打包二进制文件
+        run: |
+          mkdir -p output
+          cp dropbear/dropbear output/
+          cp dropbear/dbclient output/
+          cp dropbear/dropbearkey output/
+          cp dropbear/dropbearconvert output/
+          cp dropbear/scp output/
+          tar -cvf dropbear-amd64-musl.tar.gz -C output .
+
+      - name: ☁️ 上传编译结果
         uses: actions/upload-artifact@v4
         with:
-          name: compiled-binary
-          path: check_el
+          name: dropbear-amd64-musl
+          path: dropbear-amd64-musl.tar.gz
