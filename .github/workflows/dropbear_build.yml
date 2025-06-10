@@ -1,0 +1,55 @@
+name: Build Dropbear for Multiple Architectures
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # 允许手动触发
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        arch: [x86_64, arm, mips] # 多架构支持
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🚀 获取仓库代码
+        uses: actions/checkout@v4
+
+      - name: 🔧 安装 Buildroot 依赖
+        run: |
+          sudo apt update && sudo apt install -y build-essential git wget
+
+      - name: 📥 下载 Buildroot
+        run: |
+          BR_VER=2024.02
+          wget https://buildroot.org/downloads/buildroot-${BR_VER}.tar.gz
+          tar xvf buildroot-${BR_VER}.tar.gz
+          mv buildroot-${BR_VER} buildroot
+          
+      - name: 🎯 配置 Buildroot 目标架构
+        run: |
+          cd buildroot
+          make defconfig
+          make menuconfig <<EOF
+          set-config BR2_PACKAGE_DROPBEAR=y
+          set-config BR2_ARCH=${{ matrix.arch }}
+          EOF
+
+      - name: 🛠️ 编译 Dropbear
+        run: |
+          cd buildroot
+          make -j$(nproc)
+
+      - name: 📦 打包二进制文件
+        run: |
+          mkdir -p output/${{ matrix.arch }}
+          cp buildroot/output/images/rootfs.tar output/${{ matrix.arch }}/dropbear-rootfs.tar
+          tar -cvf dropbear-${{ matrix.arch }}.tar.gz -C output/${{ matrix.arch }} .
+
+      - name: ☁️ 上传编译结果
+        uses: actions/upload-artifact@v4
+        with:
+          name: dropbear-${{ matrix.arch }}
+          path: dropbear-${{ matrix.arch }}.tar.gz
