@@ -1,65 +1,47 @@
-name: Build Dropbear with Buildroot (Multi-Arch)
+name: Build Dropbear (Static Musl)
 
 on:
   push:
-    branches: [ "main" ]
-  workflow_dispatch:
+    branches:
+      - main
+  workflow_dispatch: # 允许手动触发
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        arch: [ "x86_64", "aarch64", "armv7", "riscv64" ]  # 目标架构
+
     steps:
-      - name: Checkout Repository
+      - name: 🚀 获取仓库代码
         uses: actions/checkout@v4
 
-      - name: Install Dependencies
+      - name: 📥 下载 Dropbear 源码
         run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential git wget cpio unzip rsync bc libssl-dev
+          git clone https://github.com/mkj/dropbear.git
+          cd dropbear
+          git checkout latest
 
-      - name: Download Buildroot
+      - name: 🔧 安装 musl 编译工具链
         run: |
-          wget https://buildroot.org/downloads/buildroot-2024.02.tar.gz
-          tar xzf buildroot-2024.02.tar.gz
-          mv buildroot-2024.02 buildroot-${{ matrix.arch }}
+          sudo apt update && sudo apt install -y musl musl-tools build-essential
 
-      - name: Configure Buildroot for Dropbear
+      - name: 🛠️ 编译 Dropbear（静态链接）
         run: |
-          cd buildroot-${{ matrix.arch }}
-          make defconfig
-          echo 'BR2_PACKAGE_DROPBEAR=y' >> .config
-          echo 'BR2_PACKAGE_DROPBEAR_CLIENT=y' >> .config
-          case "${{ matrix.arch }}" in
-            "x86_64")
-              echo 'BR2_x86_64=y' >> .config
-              ;;
-            "aarch64")
-              echo 'BR2_aarch64=y' >> .config
-              ;;
-            "armv7")
-              echo 'BR2_arm=y' >> .config
-              echo 'BR2_ARM_EABIHF=y' >> .config
-              echo 'BR2_ARM_INSTRUCTIONSET=arm' >> .config
-              ;;
-            "riscv64")
-              echo 'BR2_riscv=y' >> .config
-              echo 'BR2_RISCV_64=y' >> .config
-              ;;
-          esac
-          make olddefconfig
+          cd dropbear
+          ./configure --host=x86_64-linux-musl --disable-zlib --enable-static
+          make PROGRAMS="dropbear dbclient dropbearkey dropbearconvert scp" -j$(nproc)
 
-      - name: Build Dropbear
+      - name: 📦 打包二进制文件
         run: |
-          cd buildroot-${{ matrix.arch }}
-          make -j$(nproc)
+          mkdir -p output
+          cp dropbear/dropbear output/
+          cp dropbear/dbclient output/
+          cp dropbear/dropbearkey output/
+          cp dropbear/dropbearconvert output/
+          cp dropbear/scp output/
+          tar -cvf dropbear-amd64-musl.tar.gz -C output .
 
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v3
+      - name: ☁️ 上传编译结果
+        uses: actions/upload-artifact@v4
         with:
-          name: dropbear-${{ matrix.arch }}
-          path: |
-            buildroot-${{ matrix.arch }}/output/target/usr/sbin/dropbear
-            buildroot-${{ matrix.arch }}/output/target/usr/bin/dbclient
+          name: dropbear-amd64-musl
+          path: dropbear-amd64-musl.tar.gz
