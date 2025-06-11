@@ -1,19 +1,20 @@
 name: Build mimic with musl (static x86_64)
 
 on:
-  workflow_dispatch: # 允许手动触发
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      image: alpine:latest # 使用Alpine容器获得musl工具链
-      
+      image: alpine:latest  # 使用Alpine容器获得musl工具链
+
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive # 确保检出子模块
+    - name: Clone repository
+      run: |
+        apk add --no-cache git  # 安装git
+        git clone --depth 1 --recurse-submodules https://github.com/emptymonkey/mimic.git
+        cd mimic
 
     - name: Install build dependencies
       run: |
@@ -21,25 +22,22 @@ jobs:
           build-base \
           clang \
           cmake \
-          git \
           linux-headers \
           musl-dev \
           openssl-dev
 
     - name: Build mimic (static with musl)
       run: |
-        # 设置静态编译标志
+        cd mimic
         export CC=clang
         export CFLAGS="-static"
         export LDFLAGS="-static"
-        
-        # 编译安装
         make
-        strip mimic # 可选：缩减二进制大小
+        strip mimic
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: mimic-static-x86_64
-        path: mimic
+        path: mimic/mimic  # 二进制路径
         if-no-files-found: error
