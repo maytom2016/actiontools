@@ -24,6 +24,7 @@ jobs:
           cmake \
           linux-headers \
           musl-dev \
+          gcompat \
           openssl-dev
 
     - name: Build mimic (static with musl)
