@@ -20,7 +20,8 @@ jobs:
           cmake \
           libssl-dev \
           zlib1g-dev \
-          libc6-dev
+          libc6-dev \
+          file
 
     - name: Build ptrace_do (static)
       run: |
