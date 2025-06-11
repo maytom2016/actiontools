@@ -1,33 +1,45 @@
-name: Build mimic (Static musl)
+name: Build mimic with musl (static x86_64)
 
 on:
-  workflow_dispatch:  # 仅手动触发
+  workflow_dispatch: # 允许手动触发
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    container:
+      image: alpine:latest # 使用Alpine容器获得musl工具链
+      
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive # 确保检出子模块
 
-      - name: Install musl Cross Compiler
-        run: |
-          sudo apt update
-          sudo apt install -y musl-tools gcc-multilib
+    - name: Install build dependencies
+      run: |
+        apk add --no-cache \
+          build-base \
+          clang \
+          cmake \
+          git \
+          linux-headers \
+          musl-dev \
+          openssl-dev
 
-      - name: Build mimic with musl (Static)
-        run: |
-          mkdir -p build
-          cc -static -o build/mimic mimic.c
-          cc -static -o build/set_target_pid set_target_pid.c
+    - name: Build mimic (static with musl)
+      run: |
+        # 设置静态编译标志
+        export CC=clang
+        export CFLAGS="-static"
+        export LDFLAGS="-static"
+        
+        # 编译安装
+        make
+        strip mimic # 可选：缩减二进制大小
 
-      - name: Verify Binary Architecture
-        run: |
-          file build/mimic
-          file build/set_target_pid
-
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: mimic-static-binaries
-          path: build/
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: mimic-static-x86_64
+        path: mimic
+        if-no-files-found: error
