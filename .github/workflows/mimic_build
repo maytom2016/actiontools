@@ -1,0 +1,33 @@
+name: Build mimic (Static musl)
+
+on:
+  workflow_dispatch:  # 仅手动触发
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install musl Cross Compiler
+        run: |
+          sudo apt update
+          sudo apt install -y musl-tools gcc-multilib
+
+      - name: Build mimic with musl (Static)
+        run: |
+          mkdir -p build
+          cc -static -o build/mimic mimic.c
+          cc -static -o build/set_target_pid set_target_pid.c
+
+      - name: Verify Binary Architecture
+        run: |
+          file build/mimic
+          file build/set_target_pid
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mimic-static-binaries
+          path: build/
