@@ -13,8 +13,6 @@ jobs:
     - name: Clone repository
       run: |
         apt-get update && apt-get install -y git
-        git clone --depth 1 --recurse-submodules https://github.com/emptymonkey/mimic.git
-        cd mimic
 
     - name: Install build dependencies
       run: |
@@ -26,9 +24,12 @@ jobs:
 
     - name: Build mimic (static with musl)
       run: |
+        git clone https://github.com/emptymonkey/ptrace_do.git
         cd ptrace_do
         make
         cd ..
+        
+        git clone https://github.com/emptymonkey/mimic.git
         cd mimic
         make
 
