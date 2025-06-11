@@ -1,4 +1,4 @@
-name: Build mimic with musl (static x86_64)
+name: Build mimic (static x86_64)
 
 on:
   workflow_dispatch:
@@ -7,35 +7,42 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      image: ubuntu:latest  # 改用Ubuntu以获取glibc
+      image: ubuntu:latest
 
     steps:
-    - name: Clone repository
+    - name: Install dependencies
       run: |
-        apt-get update && apt-get install -y git
-
-    - name: Install build dependencies
-      run: |
+        apt-get update
         apt-get install -y \
+          git \
           build-essential \
           clang \
           cmake \
-          libssl-dev
+          libssl-dev \
+          zlib1g-dev \
+          libc6-dev-static  # 关键：提供glibc的静态库
 
-    - name: Build mimic (static with musl)
+    - name: Build ptrace_do (static)
       run: |
         git clone https://github.com/emptymonkey/ptrace_do.git
         cd ptrace_do
-        make
+        make CC="gcc -static" CFLAGS="-std=gnu99 -Wall -Wextra -pedantic -O3" LDFLAGS="-static"
         cd ..
-        
+
+    - name: Build mimic (static)
+      run: |
         git clone https://github.com/emptymonkey/mimic.git
         cd mimic
-        make
+        make CC="gcc -static" CFLAGS="-static" LDFLAGS="-static"
+
+    - name: Verify static linking
+      run: |
+        file mimic/mimic
+        ldd mimic/mimic || echo "Static binary (as expected)"
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: mimic-static-x86_64
-        path: mimic/mimic  # 二进制路径
+        path: mimic/mimic
         if-no-files-found: error
