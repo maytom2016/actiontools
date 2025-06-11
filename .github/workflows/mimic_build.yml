@@ -13,8 +13,8 @@ jobs:
     - name: Clone repository
       run: |
         apk add --no-cache git  # 安装git
-        git clone --depth 1 --recurse-submodules https://github.com/emptymonkey/mimic.git
-        cd mimic
+        git clone https://github.com/emptymonkey/ptrace_do.git
+        git clone https://github.com/emptymonkey/mimic.git
 
     - name: Install build dependencies
       run: |
@@ -28,12 +28,11 @@ jobs:
 
     - name: Build mimic (static with musl)
       run: |
-        cd mimic
-        export CC=clang
-        export CFLAGS="-static"
-        export LDFLAGS="-static"
+        cd ptrace_do
         make
-        strip mimic
+        cd ..
+        cd mimic
+        make
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
