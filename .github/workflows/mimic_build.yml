@@ -7,25 +7,22 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      image: alpine:latest  # 使用Alpine容器获得musl工具链
+      image: ubuntu:latest  # 改用Ubuntu以获取glibc
 
     steps:
     - name: Clone repository
       run: |
-        apk add --no-cache git  # 安装git
-        git clone https://github.com/emptymonkey/ptrace_do.git
-        git clone https://github.com/emptymonkey/mimic.git
+        apt-get update && apt-get install -y git
+        git clone --depth 1 --recurse-submodules https://github.com/emptymonkey/mimic.git
+        cd mimic
 
     - name: Install build dependencies
       run: |
-        apk add --no-cache \
-          build-base \
+        apt-get install -y \
+          build-essential \
           clang \
           cmake \
-          linux-headers \
-          musl-dev \
-          gcompat \
-          openssl-dev
+          libssl-dev
 
     - name: Build mimic (static with musl)
       run: |
